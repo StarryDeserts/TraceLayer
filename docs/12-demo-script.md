@@ -7,7 +7,8 @@ Show TraceLayer as an agent observability and control plane for verifiable artif
 ## Pre-Demo Checklist
 
 - App is running.
-- Demo account has Sui testnet funds if live anchor is shown.
+- `TRACE_LAYER_DEMO_MODE` is set to `live`, `recorded`, or `dry-run` and the UI badge matches it.
+- Demo account has Sui testnet funds if live wallet-signed or service-signed anchor is shown.
 - Walrus upload relay and Sui endpoint are configured if live upload is shown.
 - At least one fallback run has a real Walrus blob ID and real Sui transaction digest captured beforehand.
 - Demo artifact contains only synthetic, non-sensitive content.
@@ -84,14 +85,20 @@ Screen: `/artifacts/[id]`
 
 Action:
 - Click “Anchor on Sui” or show captured anchor.
+- Prefer the connected wallet signing flow in live mode.
 
-Say:
-> Sui is not storing the artifact. It stores a compact proof receipt: owner, run ID, blob ID, artifact hash, artifact type, and timestamp. That gives the artifact lineage a public anchor without putting large or private content on-chain.
+Say for wallet-signed mode:
+> This anchor is wallet-signed by the connected user. Because the Move module stores `tx_context::sender(ctx)`, the on-chain owner is the user's wallet. Sui stores compact proof metadata: run ID, blob ID, artifact hash, artifact type, and timestamp, not artifact bytes.
+
+Say for service-signed fallback:
+> This is a service-signed fallback proof. It proves the TraceLayer service signer anchored the artifact hash and blob ID; it does not prove the user's wallet signed or owns the anchor.
 
 Show:
 - Transaction digest
 - Anchor object/event
-- Owner
+- Anchor mode
+- Signer address
+- On-chain owner
 - Run ID
 - Blob ID
 - Artifact hash
@@ -145,21 +152,27 @@ Show:
 - Revoke receipt
 - Proof receipt vs access control note
 
-## Fallback Path
+## Demo Modes and Fallback Path
+
+Use the mode label exactly:
+- `live`: real Walrus upload/readback and real Sui anchor generated during this session.
+- `recorded`: pre-recorded real blob ID and transaction digest from an earlier successful live run.
+- `dry-run`: local artifact and hash only; no fake blob IDs, transaction digests, or anchor IDs.
 
 If live Walrus upload fails:
 - Show locally generated artifact and SHA-256.
 - Switch to a pre-recorded real blob ID from a prior successful run.
 - Say clearly: “This is a pre-recorded real Walrus proof example because the live network call is unavailable.”
 
-If live Sui anchor fails:
+If live wallet-signed Sui anchor fails:
 - Show the verified Walrus artifact.
-- Switch to a pre-recorded real Sui transaction digest and anchor event.
-- Say clearly: “This is a pre-recorded real Sui anchor example.”
+- Offer service-signed fallback or recorded mode deliberately.
+- If service-signed fallback is used, say clearly: “This is service-signed by TraceLayer, not user-owned by the connected wallet.”
+- If recorded mode is used, say clearly: “This is a pre-recorded real Sui anchor example.”
 
-Never show fake blob IDs or fake transaction digests as live proof.
+Never show fake blob IDs or fake transaction digests as live proof. Never imply a service-signed anchor proves user wallet ownership.
 
 ## Judge Takeaway
 
 End with:
-> TraceLayer makes AI agent artifacts verifiable and replayable without becoming an agent framework. Walrus stores the durable artifact bytes, Sui anchors compact proof receipts, and the UI turns those records into a developer-facing proof trail for replay and delegation.
+> TraceLayer makes AI agent artifacts verifiable and replayable without becoming an agent framework. Walrus stores the durable artifact bytes, Sui anchors compact proof receipts, and the UI clearly distinguishes wallet-signed user anchors from service-signed fallback proofs.

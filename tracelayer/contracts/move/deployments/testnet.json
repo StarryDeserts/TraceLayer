@@ -1,0 +1,10 @@
+{
+  "network": "testnet",
+  "packageId": "0x97dd4dbe2ab37affdf9521ba4062a8c363bdacb4d2feb91e4920129a6c4de0ab",
+  "publishTxDigest": "wqrTvjiG2tHboZuZAKgwzHdcxjGBpr2UuKjycXaXRog",
+  "upgradeCapId": "0xea7ae9ff35124df164eee11842a7bbf93e5e3965aa5828ebb8b9c9b2735322d6",
+  "publisherAddress": "0xc558e37d20405a9751c81124ac8d167e2b2d368b834319adafa549449e0715f5",
+  "moduleName": "artifact_anchor",
+  "functionName": "anchor_artifact",
+  "publishedAtMs": 1778340998849
+}

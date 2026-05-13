@@ -7,10 +7,11 @@ Use REST for MVP. REST is sufficient for the small endpoint set, easy to demo, a
 ## Common Assumptions
 
 - Auth: local demo identity plus optional connected Sui wallet address.
-- MVP owner: `ownerAddress` supplied by wallet session or local demo config.
+- `ownerAddress` in request bodies is demo-only and must not be treated as production authentication.
+- Wallet-signed Sui anchors should derive owner from the connected wallet signer and on-chain transaction sender.
 - Local DB: SQLite operational index.
 - Walrus calls: server-side Node runtime only.
-- Sui calls: server-side signer for MVP anchor/receipt calls, with browser wallet signing as future path.
+- Sui calls: wallet-signed artifact anchors when possible; server-side signer only for service-signed fallback anchors and optional receipt calls.
 - Error shape:
 
 ```json
@@ -291,20 +292,63 @@ None.
 
 ## `POST /api/artifacts/:id/anchor`
 
+Supports `anchorMode = "wallet-signed" | "server-signed-fallback"`.
+
 ### Request
 
 ```json
 {
+  "anchorMode": "wallet-signed",
   "ownerAddress": "0x...",
-  "anchorMode": "server-signed"
+  "correlationId": "corr_..."
 }
 ```
 
+For server-signed fallback:
+
+```json
+{
+  "anchorMode": "server-signed-fallback",
+  "ownerAddress": "0x...",
+  "correlationId": "corr_..."
+}
+```
+
+`ownerAddress` is demo-only and may be stored as `claimedOwnerAddress`; it is not production authentication.
+
 ### Response
+
+Wallet-signed preparation response:
 
 ```json
 {
   "artifactId": "art_...",
+  "anchorMode": "wallet-signed",
+  "correlationId": "corr_...",
+  "transactionData": "base64-or-json-transaction-data",
+  "status": "anchor_submitted"
+}
+```
+
+After wallet execution, the frontend calls the same endpoint to record the result:
+
+```json
+{
+  "anchorMode": "wallet-signed",
+  "correlationId": "corr_...",
+  "signerAddress": "0x...",
+  "anchorTxDigest": "..."
+}
+```
+
+Final recording response after wallet execution or service-signed fallback:
+
+```json
+{
+  "artifactId": "art_...",
+  "anchorMode": "wallet-signed",
+  "signerAddress": "0x..."
+  "onChainOwnerAddress": "0x...",
   "anchorTxDigest": "...",
   "anchorObjectId": "0x...",
   "proofEventId": "proof_...",
@@ -314,10 +358,12 @@ None.
 
 ### Side Effects
 
-- Builds and executes Sui transaction calling `artifact_anchor::anchor_artifact`.
-- Waits for indexing before querying anchor result when possible.
-- Updates artifact anchor fields.
-- Writes `artifact_anchor_submitted` and `artifact_anchored` proof events.
+- Requires artifact status `verified`; `mismatch` and unverified artifacts block anchoring.
+- Wallet-signed mode prepares anchor transaction data for the frontend wallet to sign and execute.
+- After wallet execution, records the submitted transaction digest, signer address, anchor mode, and indexed anchor result.
+- Server-signed fallback mode builds and executes the transaction with the service signer and labels the proof as service-signed.
+- Anchor requests are idempotent by `artifactId`; an already anchored artifact returns the existing anchor record.
+- Writes `artifact_anchor_submitted`, `artifact_anchored`, or `artifact_anchor_failed` proof events with the same `correlationId`.
 
 ### Error Cases
 
@@ -325,16 +371,18 @@ None.
 - `artifact_not_uploaded`
 - `artifact_not_verified`
 - `missing_package_id`
+- `wallet_signature_rejected`
 - `sui_transaction_failed`
 - `sui_indexing_timeout`
+- `duplicate_tx_digest`
 - `db_write_failed`
 
 ### Touchpoints
 
-- Auth: owner/project check; server signer policy review.
+- Auth: owner/project check; `ownerAddress` request field is demo-only.
 - DB: read/write.
 - Walrus: no direct call.
-- Sui: write.
+- Sui: wallet-signed write when possible; service-signed write only for fallback.
 
 ## `GET /api/proofs`
 
@@ -535,5 +583,8 @@ None, unless `sync=true` is later added to trigger event polling.
 - All Walrus upload/read operations must run in Node runtime, not Edge runtime.
 - Server signer material must never be returned to the browser.
 - No endpoint should expose private memory plaintext.
-- Anchor endpoints should block or warn when artifact verification failed.
+- Anchor endpoints must block when artifact verification failed.
+- Anchor endpoints must record `anchorMode`, `signerAddress`, and `correlationId`.
+- Sui transaction digests must be unique across successful proof events.
+- Server-signed fallback anchors must be labeled as service-signed proof, not user-owned anchors.
 - Delegation endpoints should label receipts as proof records, not enforced access control.

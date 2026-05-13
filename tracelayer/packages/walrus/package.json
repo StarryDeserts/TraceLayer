@@ -1,0 +1,29 @@
+{
+  "name": "@tracelayer/walrus",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "build": "tsc",
+    "smoke:walrus-live": "node --import tsx src/smoke-walrus-live.ts"
+  },
+  "dependencies": {
+    "@mysten/sui": "2.16.2",
+    "@mysten/walrus": "1.1.7",
+    "@tracelayer/config": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.6"
+  }
+}

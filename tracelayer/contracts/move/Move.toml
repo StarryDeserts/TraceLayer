@@ -1,0 +1,6 @@
+[package]
+name = "tracelayer_anchor"
+edition = "2024.beta"
+
+[addresses]
+tracelayer_anchor = "0x0"

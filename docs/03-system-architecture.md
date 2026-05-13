@@ -9,12 +9,12 @@ TraceLayer is split into a small web app, Node API, local database, shared packa
 | Component | Responsibility | MVP Status |
 | --- | --- | --- |
 | `apps/web` | Next.js UI for runs, artifacts, proofs, replay, delegates | MVP |
-| `services/api` | Node API for demo runs, Walrus upload/read/verify, Sui anchor calls | MVP |
+| `services/api` | Node API for demo runs, Walrus upload/read/verify, Sui anchor preparation, and service-signed fallback anchors | MVP |
 | `services/indexer` | Polls Sui events and syncs proof receipts to local DB | Lightweight MVP / can run inside API initially |
 | `packages/walrus` | Walrus client setup, upload, readback, verification helpers | MVP |
 | `packages/proof` | Proof event creation, replay context assembly, hash utilities | MVP |
 | `packages/types` | Shared TypeScript entity and API types | MVP |
-| `contracts/move` | Lightweight Move modules for run, artifact, permission receipts | MVP |
+| `contracts/move` | Required `artifact_anchor.move`; optional run and permission receipt modules after anchor flow works | MVP anchor required / others optional |
 | Local DB | SQLite operational index for runs, artifacts, proofs, delegates | MVP |
 | Walrus storage | Durable artifact bytes and optional manifests | MVP |
 | Sui chain | Compact anchors, receipt objects/events, transaction digests | MVP |
@@ -37,13 +37,13 @@ flowchart TB
     ProofPkg[packages/proof\nproof + replay helpers]
     Types[packages/types\nshared schemas]
     DB[(local SQLite DB)]
-    ServerSigner[server signer\nMVP upload/anchor custody]
+    ServerSigner[server signer\nWalrus upload + fallback Sui anchor]
   end
 
   subgraph MovePkg[contracts/move]
-    RunRegistry[run_registry.move]
-    ArtifactAnchor[artifact_anchor.move]
-    PermissionReceipt[permission_receipt.move]
+    RunRegistry[run_registry.move\noptional after anchor]
+    ArtifactAnchor[artifact_anchor.move\nrequired first]
+    PermissionReceipt[permission_receipt.move\noptional after proof trail]
   end
 
   subgraph PublicInfra[Public Networks]
@@ -62,8 +62,8 @@ flowchart TB
   WalrusPkg --> Walrus
   API --> MovePkg
   MovePkg --> Sui
-  ServerSigner --> Sui
-  Wallet -.future user-signed tx.-> Sui
+  ServerSigner -.service-signed fallback anchor.-> Sui
+  Wallet -- preferred wallet-signed anchor --> Sui
   Indexer --> Sui
   Indexer --> DB
   ProofPkg --> DB
@@ -96,10 +96,12 @@ sequenceDiagram
   Walrus-->>API: artifact bytes
   API->>Proof: Recompute hash and compare
   API->>DB: Save verification proof
-  Web->>API: POST /api/artifacts/:id/anchor
-  API->>Sui: Execute artifact anchor transaction
-  Sui-->>API: tx digest + anchor event/object
-  API->>DB: Save Sui anchor proof
+  Web->>API: POST /api/artifacts/:id/anchor with wallet-signed mode
+  API-->>Web: Prepared anchor transaction data
+  Web->>Sui: Connected wallet signs and executes anchor
+  Sui-->>Web: tx digest + anchor event/object
+  Web->>API: Submit tx digest and signer result
+  API->>DB: Save wallet-signed Sui anchor proof
   Web->>API: POST /api/replay/:runId
   API->>Proof: Assemble replay context
   Proof-->>API: context reconstruction
@@ -141,7 +143,8 @@ flowchart LR
   Routes --> Hashing
   Hashing --> WalrusBlob
   SecretSigner --> WalrusBlob
-  SecretSigner --> SuiObjects
+  SecretSigner -.service-signed fallback only.-> SuiObjects
+  Wallet -- wallet-signed anchor --> SuiObjects
   SQLite --> UI
 
   classDef sensitive fill:#ffe1e1,stroke:#cc3333,color:#111;
@@ -152,7 +155,7 @@ flowchart LR
 
 ## MVP Architecture
 
-The MVP uses server-side custody for Walrus writes and Sui anchor transactions. This minimizes browser complexity and makes the demo reliable. The local database is the operational source of truth for run pages and proof timelines. Walrus is the artifact availability layer. Sui is the compact proof and receipt layer.
+The MVP uses server-side custody for Walrus writes, but prefers wallet-signed Sui artifact anchors so `tx_context::sender(ctx)` is the user's wallet. Server-signed Sui anchors are allowed only as fallback and must be labeled as service-signed proofs. The local database is the operational source of truth for run pages and proof timelines. Walrus is the artifact availability layer. Sui is the compact proof and receipt layer.
 
 MVP services can be deployed as a single Next.js app with API routes or as a separate Node API if time permits. The architecture keeps `services/api` separate in the docs so it can grow without changing conceptual boundaries.
 
@@ -167,7 +170,7 @@ MVP services can be deployed as a single Next.js app with API routes or as a sep
 | Memory refs | References only, no plaintext private memory | MemWal integration for encrypted memory pointers |
 | Identity | Local owner address + normal wallet | zkLogin, organizations, team delegates |
 | Replay | Context reconstruction | Replay graphs, evaluator outputs, imported traces |
-| Contracts | Lightweight anchor and receipt modules | Upgrade policy, richer package, optional shared registry |
+| Contracts | Required lightweight artifact anchor; optional receipt modules after proof trail works | Upgrade policy, richer package, optional shared registry |
 
 ## Component Boundaries
 
@@ -177,7 +180,7 @@ Reads API responses and renders proof-focused flows. It does not hold private ke
 
 ### `services/api`
 
-Coordinates demo runs, Walrus uploads, readback verification, local DB writes, Sui anchors, and replay assembly. It is the only MVP component allowed to load server signer material.
+Coordinates demo runs, Walrus uploads, readback verification, local DB writes, Sui anchor preparation, service-signed fallback anchors, and replay assembly. It is the only MVP component allowed to load server signer material.
 
 ### `services/indexer`
 

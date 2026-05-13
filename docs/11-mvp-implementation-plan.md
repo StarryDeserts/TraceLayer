@@ -1,10 +1,10 @@
 # MVP Implementation Plan
 
-## Phase 0: Architecture Validation
+## Phase 0: Mandatory Architecture Validation
 
 | Item | Details |
 | --- | --- |
-| Goal | Confirm version-sensitive Walrus, Sui SDK, and Move assumptions before code generation. |
+| Goal | Confirm version-sensitive Walrus, Sui SDK, Move, and signer/ownership assumptions before code generation. Phase 0 is mandatory and blocks implementation. |
 | Deliverables | Verified SDK notes, selected package versions, confirmed testnet endpoints, Move syntax notes, env var checklist. |
 | Acceptance criteria | Current docs confirm client initialization, upload/read APIs, PTB execution, event query approach, and Move object/event syntax. |
 | Risks | SDK examples may differ across versions; docs may show `blob` vs `bl`; client response shape may change. |
@@ -19,6 +19,10 @@ Tasks:
 - Confirm `writeBlob`, `readBlob`, `writeBlobFlow`, and `writeFilesFlow` signatures.
 - Confirm Sui transaction execution and event query patterns.
 - Confirm Move syntax for `UID`, `ID`, events, vectors, and `TxContext`.
+- Run a Walrus `writeBlob` / `readBlob` smoke test with non-sensitive bytes.
+- Run a Sui transaction sign/execute/wait smoke test.
+- Run a Move `artifact_anchor` compile test with the validation constants.
+- Complete a signer/owner semantics confirmation for wallet-signed and server-signed fallback anchors.
 
 ## Phase 1: MVP Scaffold
 
@@ -62,19 +66,22 @@ Implementation rules:
 
 | Item | Details |
 | --- | --- |
-| Goal | Publish lightweight Move anchor package on testnet and call anchor function from the API or wallet flow. |
-| Deliverables | Move package, `artifact_anchor.move`, optional `run_registry.move`, optional `permission_receipt.move`, TS PTB call, tx digest capture. |
-| Acceptance criteria | Verified artifact can be anchored; transaction digest and anchor proof event appear in UI. |
-| Risks | Move syntax errors, package ID handling, ownership semantics, timestamp trust, event indexing delay. |
+| Goal | Publish lightweight `artifact_anchor.move` package on testnet and anchor verified artifacts through the wallet-signed flow when possible. |
+| Deliverables | Move package, required `artifact_anchor.move`, TS PTB builder/preparation path, wallet sign/execute path, service-signed fallback path, tx digest capture. |
+| Acceptance criteria | Verified artifact can be anchored by the connected wallet; transaction digest, anchor mode, signer address, on-chain owner, and proof event appear in UI. Service-signed fallback is labeled as service-signed proof. |
+| Risks | Move syntax errors, package ID handling, ownership semantics, timestamp trust, event indexing delay, wallet popup failure. |
 | Estimated complexity | High. |
 | Claude Code can safely generate | Draft Move modules, Move tests, PTB wrapper, event parser, UI proof display. |
 | Human must review | Contract authorization, upgrade capability custody, package publication, gas/signer policy. |
 
 Implementation rules:
 - Store only owner, run ID, blob ID, artifact hash, artifact type, timestamp, schema version.
+- Enforce `run_id <= 64` bytes, `blob_id <= 256` bytes, `artifact_hash` exactly 32 bytes, and `artifact_type <= 32` bytes.
+- Treat `created_at_ms` as app timestamp unless a Sui Clock field is explicitly added.
 - Do not store artifacts or private context on-chain.
 - Check transaction failure state.
 - Wait for indexing before querying.
+- Record `anchorMode`, `signerAddress`, `onChainOwnerAddress`, and `correlationId`.
 
 ## Phase 4: Run Timeline and Proof Trail
 
@@ -94,6 +101,8 @@ Implementation rules:
 - Keep 5-minute path visible.
 
 ## Phase 5: Delegation/Revoke MVP
+
+Start this phase only after Phase 3 artifact anchor and Phase 4 proof trail are working.
 
 | Item | Details |
 | --- | --- |
@@ -146,7 +155,7 @@ Implementation rules:
 
 | Priority | Question | Why it matters | How to resolve |
 | --- | --- | --- | --- |
-| High | Must the live demo execute real Walrus/Sui calls, or can it use pre-recorded fallback proofs? | Determines reliability strategy. | Prepare both; lead with live calls, fallback to recorded real examples. |
+| High | Which `TRACE_LAYER_DEMO_MODE` should each rehearsal and final demo use? | Determines reliability strategy and allowed proof claims. | Prepare `live`, `recorded`, and `dry-run`; lead with live calls when network and wallet are ready. |
 | Medium | What demo task should the research agent run? | The artifact should make the proof trail obvious. | Use a Walrus/Sui research report with memory refs and one artifact. |
 | Medium | Should delegation be shown live or pre-recorded? | Live grant/revoke can consume time. | Use local grant live and Sui receipt pre-recorded if time is tight. |
 
@@ -155,7 +164,7 @@ Implementation rules:
 | Priority | Question | Why it matters | How to resolve |
 | --- | --- | --- | --- |
 | High | What exact data is safe to upload in the demo artifact? | Walrus blobs may be public/discoverable. | Use synthetic non-sensitive content only. |
-| High | How will server signer secrets be stored locally and in deployment? | Prevents accidental private key exposure. | Use local `.env` and deployment secret manager; never use `NEXT_PUBLIC_*`. |
+| High | How will server signer secrets be stored locally and in deployment? | Prevents accidental private key exposure and fallback misuse. | Use local `.env` and deployment secret manager; never use `NEXT_PUBLIC_*`; label service-signed fallback anchors honestly. |
 | Medium | Should hashes cover plaintext, ciphertext, or both in future encrypted artifacts? | Audit semantics differ. | Document policy before adding encryption. |
 
 ### Deployment

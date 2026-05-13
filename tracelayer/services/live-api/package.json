@@ -1,0 +1,22 @@
+{
+  "name": "@tracelayer/live-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "build": "tsc",
+    "dev": "node --import tsx src/server.ts"
+  },
+  "dependencies": {
+    "@tracelayer/api": "workspace:*",
+    "@tracelayer/config": "workspace:*",
+    "@tracelayer/sui-anchor": "workspace:*",
+    "@tracelayer/walrus": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.6"
+  }
+}

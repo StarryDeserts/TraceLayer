@@ -2,7 +2,7 @@
 
 ## Role of Walrus
 
-Walrus stores durable artifact bytes for agent runs. TraceLayer uses Walrus as the availability layer and Sui as the compact proof anchor layer. The app database maps run IDs and artifact IDs to Walrus blob IDs, Sui blob object IDs when available, artifact hashes, and proof events.
+Walrus stores durable artifact bytes for agent runs. TraceLayer uses Walrus as the availability layer and Sui as the compact proof anchor layer. The app database maps run IDs and artifact IDs to Walrus blob IDs, Sui blob object IDs when available, artifact hashes, proof states, and proof events.
 
 Walrus data should be treated as public/discoverable by default. Sensitive artifacts must be encrypted or redacted before upload.
 
@@ -27,8 +27,9 @@ Walrus data should be treated as public/discoverable by default. Sensitive artif
    - Deletable/permanent flag
    - Raw SDK response summary
    - Upload proof event
-7. API optionally reads the blob back.
-8. API recomputes SHA-256 and records verification status.
+7. API creates an upload proof event with a `correlationId`.
+8. API optionally reads the blob back.
+9. API recomputes SHA-256 and records verification status.
 
 ## Client Initialization Assumption
 
@@ -147,19 +148,25 @@ Rules:
 
 TODO verify against official docs before use: relay host, auth, tip config, request limits, and return fields.
 
-## Dry-Run Mode
+## Demo Modes
 
-Dry-run mode helps the demo stay usable before testnet credentials are ready.
+`TRACE_LAYER_DEMO_MODE` is defined in [Demo Mode and Fallback Plan](15-demo-mode-and-fallback-plan.md).
+
+| Mode | Walrus behavior | Sui behavior |
+| --- | --- | --- |
+| `live` | Real `writeBlob` and `readBlob` verification | Real wallet-signed anchor or labeled service-signed fallback |
+| `recorded` | Pre-recorded real blob ID from an earlier live run | Pre-recorded real transaction digest from an earlier live run |
+| `dry-run` | Local artifact bytes and SHA-256 only | No Sui transaction |
 
 Dry-run should:
 - Generate artifact bytes.
 - Compute SHA-256.
 - Create local `ArtifactRef` with `uploadStatus: 'not_uploaded'`.
-- Create a proof event labeled as dry-run.
+- Create a proof event labeled with `dryRun: true`.
 - Avoid pretending that a Walrus blob ID exists.
-- Use demo-only placeholder labels that cannot be mistaken for real blob IDs.
+- Display “No Walrus blob created” rather than placeholder blob IDs.
 
-Dry-run should not create fake Sui transaction digests or fake permanent proof claims.
+Dry-run must not create fake Walrus blob IDs, fake Sui transaction digests, fake anchor object IDs, or fake permanent proof claims.
 
 ## Failure Handling
 

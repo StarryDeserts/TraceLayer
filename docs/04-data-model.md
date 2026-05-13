@@ -5,6 +5,7 @@
 - The local database is the operational source of truth for UI queries.
 - Walrus is the source of truth for artifact bytes once uploaded and certified.
 - Sui is the source of truth for compact proof receipts after transactions are finalized and indexed.
+- Wallet-signed and server-signed fallback anchors must be distinguishable in local records.
 - Hashes are computed over exact uploaded bytes.
 - Private memory contents and private chain-of-thought are never stored in TraceLayer MVP records.
 - Future encrypted artifacts must be encrypted before Walrus upload.
@@ -20,6 +21,31 @@
 | `ProofEvent` | Timeline of proof actions | Local DB, some mirrored on Sui | Mixed; Sui proofs public |
 | `DelegateEvent` | Grant/revoke receipt | Local DB, optional Sui receipt | Public receipt, private policy details offchain |
 | `ReplayContext` | Derived reconstruction view | Derived from DB + Walrus + Sui | Private/local view |
+
+## Shared State and Mode Types
+
+```ts
+type ProofMode = 'live' | 'recorded' | 'dry-run';
+type AnchorMode = 'wallet-signed' | 'server-signed-fallback';
+
+type ArtifactProofState =
+  | 'generated'
+  | 'upload_pending'
+  | 'uploading'
+  | 'uploaded'
+  | 'upload_failed'
+  | 'verifying'
+  | 'verified'
+  | 'mismatch'
+  | 'anchor_submitted'
+  | 'anchored'
+  | 'anchor_failed'
+  | 'replay_requested'
+  | 'delegate_granted'
+  | 'delegate_revoked';
+```
+
+These names mirror [Proof Event State Machine](13-proof-event-state-machine.md). `AnchorMode` mirrors [Signer and Ownership Model](14-signer-and-ownership-model.md).
 
 ## `UserProject`
 
@@ -96,8 +122,14 @@ type ArtifactRef = {
   walrusNetwork: string;
   epochs?: number;
   deletable?: boolean;
-  uploadStatus: 'not_uploaded' | 'uploading' | 'uploaded' | 'upload_failed';
-  verificationStatus: 'not_checked' | 'verified' | 'mismatch' | 'read_failed';
+  proofState: ArtifactProofState;
+  uploadStatus: 'not_uploaded' | 'upload_pending' | 'uploading' | 'uploaded' | 'upload_failed';
+  verificationStatus: 'not_checked' | 'verifying' | 'verified' | 'mismatch' | 'read_failed';
+  anchorMode?: AnchorMode;
+  signerAddress?: string;
+  claimedOwnerAddress?: string;
+  onChainOwnerAddress?: string;
+  serviceSigned?: boolean;
   anchorObjectId?: string;
   anchorTxDigest?: string;
   createdAtMs: number;
@@ -148,6 +180,7 @@ type MemoryRef = {
 ```ts
 type ProofEvent = {
   proofEventId: string;
+  correlationId: string;
   projectId: string;
   runId?: string;
   artifactId?: string;
@@ -158,10 +191,18 @@ type ProofEvent = {
     | 'artifact_verified'
     | 'artifact_anchor_submitted'
     | 'artifact_anchored'
+    | 'artifact_anchor_failed'
     | 'replay_requested'
     | 'delegate_granted'
     | 'delegate_revoked';
   status: 'pending' | 'succeeded' | 'failed';
+  mode: ProofMode;
+  anchorMode?: AnchorMode;
+  signerAddress?: string;
+  claimedOwnerAddress?: string;
+  onChainOwnerAddress?: string;
+  dryRun?: boolean;
+  recorded?: boolean;
   summary: string;
   walrusBlobId?: string;
   suiObjectId?: string;
@@ -179,7 +220,7 @@ type ProofEvent = {
 | Stored on Walrus | Optional future proof manifest |
 | Stored on Sui | Event subset for anchor/delegate/revoke |
 | Public/private | Public if mirrored on Sui; local-only proof events can contain private operational metadata |
-| Hash requirements | Include artifact hash for upload/verify/anchor events |
+| Hash requirements | Include artifact hash for upload/verify/anchor events; every proof event must include a `correlationId` |
 | Future encryption | Private proof details can move to encrypted Walrus manifests with public hash anchors |
 
 ## `DelegateEvent`

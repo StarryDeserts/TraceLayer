@@ -1,0 +1,16 @@
+node_modules/
+.pnpm-store/
+.next/
+.playwright-mcp
+dist/
+coverage/
+docs/
+fixtures/
+uiux-design/
+.env
+.env.*
+*.db
+*.db-shm
+*.db-wal
+*.tsbuildinfo
+phase*.png

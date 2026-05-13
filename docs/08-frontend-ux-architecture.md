@@ -21,7 +21,7 @@ MVP can implement Artifacts as links from runs rather than a top-level list, but
 | Item | Design |
 | --- | --- |
 | Purpose | Landing screen for demo status and primary actions |
-| Data dependencies | Latest runs, latest proof events, Walrus/Sui config status, demo mode |
+| Data dependencies | Latest runs, latest proof events, Walrus/Sui config status, `TRACE_LAYER_DEMO_MODE`, anchor signing mode |
 | Primary action | Start demo run |
 | Empty state | “No runs yet. Start a demo run to generate a verifiable artifact.” |
 | Loading state | Skeleton cards for latest run, proof status, and network config |
@@ -190,7 +190,7 @@ Trigger verification. Show expected hash, actual hash, and verified badge. Expla
 
 ### 2:40-3:25 — Anchor on Sui
 
-Click “Anchor on Sui.” Show transaction digest, anchor object/event, owner, run ID, blob ID, artifact hash, and artifact type. Explain that Sui stores proof metadata, not artifact bytes.
+Click “Anchor on Sui.” Prefer the connected wallet flow and show “Wallet-signed Sui anchor by 0x...” after execution. If the fallback path is used, show “Service-signed fallback proof” and explain that it does not prove user wallet ownership. Show transaction digest, anchor object/event, signer, on-chain owner, run ID, blob ID, artifact hash, and artifact type.
 
 ### 3:25-4:10 — Proof Trail
 
@@ -211,12 +211,23 @@ Use precise labels:
 - “Proof receipt” instead of “access granted on-chain” unless encryption/access enforcement exists.
 - “Walrus blob ID” instead of “file ID.”
 - “Sui anchor” instead of “stored on Sui.”
+- “Wallet-signed Sui anchor by 0x...” when the connected wallet signed the transaction.
+- “Service-signed fallback proof” when the backend service signer submitted the transaction.
+- “Uploaded by TraceLayer service to Walrus” for MVP Walrus uploads.
 - “Verified hash” only after readback comparison.
+
+Do not use “user-owned anchor” for service-signed fallback anchors.
 
 ## Demo Fallback States
 
+Demo mode labels should follow [Demo Mode and Fallback Plan](15-demo-mode-and-fallback-plan.md):
+- `live`: real Walrus upload/readback and real Sui anchor transaction.
+- `recorded`: pre-recorded real blob ID and tx digest, labeled as a proof example.
+- `dry-run`: local artifact and SHA-256 only.
+
 If live Walrus or Sui calls fail during the demo:
 - Show dry-run artifact generation and local hash.
-- Show previously recorded real blob ID and tx digest.
+- Show previously recorded real blob ID and tx digest only in recorded mode.
 - Clearly label fallback records as pre-recorded proof examples.
 - Do not display fake transaction digests or fake blob IDs as live results.
+- If service-signed fallback anchor is used, label it as service-owned/service-signed proof.

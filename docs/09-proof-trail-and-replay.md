@@ -6,7 +6,7 @@ TraceLayer differentiates through Replay + Delegation + Proof Trail. The product
 
 ## Proof Trail Model
 
-A proof trail is an ordered timeline of local and on-chain proof events. Local events make the UI responsive and complete; Sui events make selected proof claims durable and public.
+A proof trail is an ordered timeline of local and on-chain proof events. Local events make the UI responsive and complete; Sui events make selected proof claims durable and public. State transitions and idempotency rules are defined in [Proof Event State Machine](13-proof-event-state-machine.md).
 
 ## Proof Event Types
 
@@ -15,8 +15,9 @@ A proof trail is an ordered timeline of local and on-chain proof events. Local e
 | `run_registered` | Run metadata recorded | Yes | No | Optional event/object |
 | `artifact_uploaded` | Artifact bytes uploaded to Walrus | Yes | Write | No |
 | `artifact_verified` | Readback hash matched stored hash | Yes | Read | No |
-| `artifact_anchor_submitted` | Sui anchor transaction submitted | Yes | No | Pending tx |
+| `artifact_anchor_submitted` | Wallet signing prepared/pending or Sui anchor transaction submitted | Yes | No | Pending tx or wallet flow |
 | `artifact_anchored` | Sui anchor confirmed/indexed | Yes | No | Event/object |
+| `artifact_anchor_failed` | Wallet signing or Sui anchor transaction failed | Yes | No | Optional failed tx |
 | `replay_requested` | User reconstructed replay context | Yes | Optional read | Optional read |
 | `delegate_granted` | Delegation receipt recorded | Yes | No | Optional event/object |
 | `delegate_revoked` | Revoke receipt recorded | Yes | No | Optional event/object |
@@ -54,7 +55,10 @@ Verification does not prove that plaintext was safe to upload. It proves byte in
 ## Sui Anchor Proof
 
 A Sui anchor proof links:
-- Owner address
+- Anchor mode: `wallet-signed` or `server-signed-fallback`
+- Signer address
+- On-chain owner address
+- Claimed owner address if the app records one separately
 - Run ID
 - Blob ID
 - Artifact hash
@@ -64,9 +68,11 @@ A Sui anchor proof links:
 - Anchor object ID or event ID
 - Package ID and network
 
-The proof claim is: “this owner recorded a compact proof claim on Sui tying this run, blob ID, and artifact hash together.”
+The proof claim depends on signer mode:
+- Wallet-signed: “this connected wallet signed a Sui transaction tying this run, blob ID, and artifact hash together.”
+- Server-signed fallback: “the TraceLayer service signer recorded a Sui proof tying this run, blob ID, and artifact hash together.”
 
-Sui anchor proof does not mean artifact bytes are stored on Sui.
+Sui anchor proof does not mean artifact bytes are stored on Sui. Server-signed fallback does not prove the user's wallet owns the anchor.
 
 ## Delegate Grant Proof
 
@@ -202,6 +208,10 @@ Every proof event should show:
 - Human-readable label
 - Machine-readable type
 - Status
+- Correlation ID
+- Demo mode: `live`, `recorded`, or `dry-run`
+- Anchor mode when relevant
+- Signer address when relevant
 - Timestamp
 - Linked run/artifact/delegate
 - Blob ID when relevant
@@ -212,6 +222,8 @@ Every proof event should show:
 ## Proof Limitations
 
 - A hash proves byte equality, not semantic truth.
+- A wallet-signed Sui anchor proves the connected wallet signed the anchor transaction.
+- A service-signed fallback anchor proves the service signer recorded a public claim, not user wallet ownership.
 - A Sui anchor proves a public claim was recorded, not that the artifact is safe or correct.
 - A delegate receipt proves product intent, not access enforcement.
 - A replay context reconstructs observable context, not model-private reasoning.

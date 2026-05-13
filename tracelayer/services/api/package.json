@@ -1,0 +1,30 @@
+{
+  "name": "@tracelayer/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "build": "tsc",
+    "dev": "node --import tsx src/server.ts"
+  },
+  "dependencies": {
+    "@tracelayer/config": "workspace:*",
+    "@tracelayer/db": "workspace:*",
+    "@tracelayer/proof": "workspace:*",
+    "@tracelayer/types": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.6"
+  }
+}

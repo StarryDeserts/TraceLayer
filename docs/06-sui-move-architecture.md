@@ -11,6 +11,7 @@ Sui provides compact, public proof receipts for TraceLayer. It does not store ar
 - Emit query-friendly events for proof trails.
 - Store hashes and identifiers, not large metadata.
 - Treat every on-chain field as public.
+- For MVP, implement `artifact_anchor.move` first; add run registry and permission receipts only after the anchor flow works.
 - Keep delegation/revoke semantics as proof receipts in MVP, not actual access enforcement.
 - Review Move authorization, ownership, upgrade policy, and event schema manually before publishing.
 
@@ -18,15 +19,15 @@ Sui provides compact, public proof receipts for TraceLayer. It does not store ar
 
 | Module | Purpose | MVP Priority |
 | --- | --- | --- |
-| `run_registry.move` | Optional run registration and proof-root receipt | Medium |
-| `artifact_anchor.move` | Anchor Walrus blob ID and artifact hash for a run | High |
-| `permission_receipt.move` | Record delegation and revoke receipt events | Medium |
+| `artifact_anchor.move` | Anchor Walrus blob ID and artifact hash for a run | Required first |
+| `run_registry.move` | Optional run registration and proof-root receipt | After first anchor flow works |
+| `permission_receipt.move` | Record delegation and revoke receipt events | After artifact anchor and proof trail work |
 
 ## `run_registry.move`
 
 ### Purpose
 
-Records that a TraceLayer run exists and optionally stores a run-level proof root. This module is useful if the demo wants a `run_registered` on-chain receipt before artifacts are anchored.
+Records that a TraceLayer run exists and optionally stores a run-level proof root. This module is optional after the first `artifact_anchor.move` flow works. The MVP can represent `run_registered` as a local proof event until artifact anchoring is stable.
 
 ### Objects
 
@@ -93,7 +94,7 @@ public entry fun register_run(
 
 ### Purpose
 
-Creates a lightweight Sui object/event tying an owner, run ID, Walrus blob ID, artifact hash, artifact type, and timestamp together. This is the core on-chain proof for the MVP.
+Creates a lightweight Sui object/event tying an owner, run ID, Walrus blob ID, artifact hash, artifact type, and timestamp together. This is the only required Move module for the first MVP anchor flow.
 
 ### Objects
 
@@ -145,8 +146,20 @@ public entry fun anchor_artifact(
 - Walrus blob ID
 - Artifact hash
 - Artifact type
-- Created timestamp
+- App-created timestamp
 - Schema version
+
+### Validation Requirements
+
+The entry function should reject invalid proof metadata before creating the object or emitting the event:
+- `run_id <= 64` bytes.
+- `blob_id <= 256` bytes.
+- `artifact_hash` must be exactly 32 bytes.
+- `artifact_type <= 32` bytes.
+
+### Timestamp Semantics
+
+`created_at_ms` is an app-supplied timestamp describing when TraceLayer created the artifact/proof record. It is not a trusted chain timestamp. If the implementation needs chain time, it should explicitly use Sui Clock and document that separate field.
 
 ### Intentionally Not Stored On-Chain
 
@@ -163,13 +176,14 @@ public entry fun anchor_artifact(
 - Blob IDs and artifact hashes are public.
 - Artifact type may leak business context.
 - If hash canonicalization changes, old anchors remain valid only under their original schema.
-- If a server signer anchors on behalf of a user, ownership semantics must be clear in the UI.
+- If a server signer submits the transaction, `owner = tx_context::sender(ctx)` makes the service signer the on-chain owner.
+- If service-signed fallback needs to display a user address, store it separately as `claimed_owner`; that field is an app claim, not signer proof.
 
 ## `permission_receipt.move`
 
 ### Purpose
 
-Records proof receipts for delegation and revoke actions. In MVP, these receipts do not enforce data access. They provide public proof that the app recorded a grant or revoke action for a run, artifact, or project.
+Records proof receipts for delegation and revoke actions. This module is optional after the artifact anchor and proof trail work. In MVP, these receipts do not enforce data access. They provide public proof that the app recorded a grant or revoke action for a run, artifact, or project.
 
 ### Objects
 
@@ -268,6 +282,14 @@ A permission receipt proves that a grant or revoke event was recorded. It does n
 - Revoke receipts cannot remove already-seen plaintext.
 - Without encryption, revoke is a product-state claim, not cryptographic enforcement.
 
+## Ownership Semantics
+
+If `ArtifactAnchor.owner` is set from `tx_context::sender(ctx)`, the owner is the transaction signer:
+- Wallet-signed anchor: owner is the connected user's wallet.
+- Server-signed fallback anchor: owner is the TraceLayer service signer.
+
+A server-signed fallback anchor proves the service recorded the blob ID and artifact hash. It must not be described as user-owned unless the user wallet actually signed the transaction.
+
 ## PTB Pseudocode
 
 ```ts
@@ -328,7 +350,7 @@ Production indexing should use a dedicated indexer or checkpoint stream.
 Before publishing contracts, review:
 - Object abilities and transfer semantics.
 - Whether anchors should be owned, shared, or event-only.
-- Authorization for server-signed vs user-signed anchors.
+- Authorization and UI labeling for wallet-signed anchors vs service-signed fallback anchors.
 - Event field types and query patterns.
 - Package upgrade policy.
 - Sensitive metadata leakage.

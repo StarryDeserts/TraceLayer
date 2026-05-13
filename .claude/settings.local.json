@@ -2,7 +2,35 @@
   "permissions": {
     "allow": [
       "mcp__plugin_context7_context7__resolve-library-id",
-      "mcp__plugin_context7_context7__query-docs"
+      "mcp__plugin_context7_context7__query-docs",
+      "Bash(sui *)",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(ANCHOR_MODE=wallet-signed SUI_PACKAGE_ID=0x1234 ANCHOR_BLOB_ID=phase0_real_blob_id_placeholder_for_prepare_only npm run *)",
+      "Bash(ANCHOR_MODE=wallet-signed SUI_PACKAGE_ID=0x1234 ANCHOR_BLOB_ID=realPhase0BlobIdForTransactionPreparation npm run *)",
+      "Bash(pnpm -v)",
+      "Bash(pnpm install *)",
+      "Bash(pnpm *)",
+      "Bash(git *)",
+      "Bash(node *)",
+      "Bash(walrus *)",
+      "Bash(python *)",
+      "Bash(exit 1)",
+      "Bash(python3 *)",
+      "mcp__plugin_playwright_playwright__browser_resize",
+      "mcp__plugin_playwright_playwright__browser_navigate",
+      "mcp__plugin_playwright_playwright__browser_console_messages",
+      "mcp__plugin_playwright_playwright__browser_run_code_unsafe",
+      "mcp__plugin_playwright_playwright__browser_evaluate",
+      "mcp__plugin_playwright_playwright__browser_network_requests",
+      "mcp__plugin_playwright_playwright__browser_snapshot",
+      "mcp__plugin_playwright_playwright__browser_take_screenshot",
+      "mcp__plugin_playwright_playwright__browser_network_request",
+      "Bash(curl *)",
+      "mcp__plugin_playwright_playwright__browser_fill_form",
+      "mcp__plugin_playwright_playwright__browser_click",
+      "mcp__plugin_playwright_playwright__browser_close",
+      "mcp__plugin_playwright_playwright__browser_press_key"
     ]
   }
 }

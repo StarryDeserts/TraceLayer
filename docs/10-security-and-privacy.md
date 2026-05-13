@@ -37,13 +37,15 @@ Hash verification is required for proof trails:
 
 Hash verification does not protect confidentiality. Encryption is separate.
 
-## Server-Side Upload Risks
+## Server-Signed Walrus Upload and Sui Anchor Risks
 
-Server-side upload is chosen for MVP reliability, but it carries risks:
-- Server signer pays fees and can anchor records on behalf of users.
+Server-side Walrus upload is chosen for MVP reliability, but it carries risks:
+- Server signer pays fees and uploads bytes to Walrus.
 - Private key custody is centralized.
-- Backend compromise could upload or anchor incorrect records.
+- Backend compromise could upload incorrect records.
 - Environment variables can be leaked if misconfigured.
+
+Server-signed Sui anchors are different from server-signed Walrus uploads. If the Move module stores `owner = tx_context::sender(ctx)`, a server-signed Sui anchor is owned by the service signer, not by the user's wallet. It is allowed only as a service-signed fallback proof.
 
 MVP safeguards:
 - Keep signer loading server-only.
@@ -51,11 +53,12 @@ MVP safeguards:
 - Never put private keys in `NEXT_PUBLIC_*` variables.
 - Log only non-secret identifiers.
 - Show when a proof was server-signed.
+- Prefer wallet-signed Sui anchors so the on-chain owner is the connected wallet.
 - Require human review of signer custody before real deployment.
 
 ## Frontend Key Handling
 
-The frontend may connect to a normal Sui wallet for identity and future user-signed actions. It must not receive server private keys.
+The frontend may connect to a normal Sui wallet for identity and wallet-signed Sui anchors. It must not receive server private keys.
 
 Allowed in frontend:
 - Public package IDs

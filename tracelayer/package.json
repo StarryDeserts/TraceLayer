@@ -1,0 +1,22 @@
+{
+  "name": "tracelayer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "check:walrus-boundary": "node scripts/check-walrus-import-boundary.mjs",
+    "dev:api": "pnpm --filter @tracelayer/api dev",
+    "dev:api:live": "pnpm --filter @tracelayer/live-api dev",
+    "dev:web": "pnpm --filter @tracelayer/web dev",
+    "db:init": "pnpm --filter @tracelayer/db db:init"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.14"
+  }
+}

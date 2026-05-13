@@ -16,7 +16,7 @@ No implementation, scaffolding, package installation, Move publishing, Walrus up
 
 ## MVP Summary
 
-The MVP starts with a demo agent run that produces one markdown artifact. TraceLayer hashes the exact artifact bytes, uploads them to Walrus, stores local run and artifact metadata, anchors compact artifact proof metadata on Sui, displays a proof trail, and reconstructs a replay context from task input, memory refs, artifact refs, blob IDs, hash verification state, and prior run dependencies.
+The MVP starts with a demo agent run that produces one markdown artifact. TraceLayer hashes the exact artifact bytes, uploads them to Walrus through the server-side MVP path, stores local run and artifact metadata, prefers a wallet-signed Sui artifact anchor, records server-signed Sui anchors only as service-signed fallback proofs, displays a proof trail, and reconstructs a replay context from task input, memory refs, artifact refs, blob IDs, hash verification state, and prior run dependencies.
 
 ## Non-Goal Summary
 
@@ -36,6 +36,9 @@ TraceLayer must not be framed as an AI memory dashboard. It is also not a new AI
 10. [Security and Privacy](10-security-and-privacy.md)
 11. [MVP Implementation Plan](11-mvp-implementation-plan.md)
 12. [Demo Script](12-demo-script.md)
+13. [Proof Event State Machine](13-proof-event-state-machine.md)
+14. [Signer and Ownership Model](14-signer-and-ownership-model.md)
+15. [Demo Mode and Fallback Plan](15-demo-mode-and-fallback-plan.md)
 
 ## Architecture Decision Records
 
@@ -51,7 +54,7 @@ TraceLayer must not be framed as an AI memory dashboard. It is also not a new AI
 | Agent execution | Demo research runner that generates one markdown artifact | External agent SDK integrations and imported run traces |
 | Walrus upload | Server-side upload from Node runtime | Browser wallet upload with `writeBlobFlow` / `writeFilesFlow` |
 | Artifact privacy | Non-sensitive demo artifacts only | Client-side encryption and Seal-backed access flows |
-| Sui usage | Lightweight artifact anchor and receipt events | Richer package, upgraded registry, custom indexer |
+| Sui usage | Wallet-signed lightweight artifact anchor when possible; service-signed fallback clearly labeled | Sponsored transactions, richer package, upgraded registry, custom indexer |
 | Run metadata | SQLite/local app database | Multi-project hosted database and sync |
 | Indexing | Simple event polling | Dedicated checkpoint/event indexer |
 | Identity | Local demo identity plus normal Sui wallet ownership | zkLogin and team accounts |
@@ -77,5 +80,5 @@ Mark these with `TODO verify against official docs before use` in implementation
 Detailed open questions are tracked in [MVP Implementation Plan](11-mvp-implementation-plan.md#open-questions). Highest-priority items before implementation:
 - Confirm current Walrus TypeScript SDK upload/read/relay syntax.
 - Confirm current Sui SDK transaction execution and event query syntax.
-- Decide whether the demo must execute real testnet Sui/Walrus calls live or can use pre-recorded fallback records.
+- Choose `TRACE_LAYER_DEMO_MODE=live`, `recorded`, or `dry-run` for each rehearsal and final demo.
 - Confirm hackathon submission requirements for deployed app, repo, video, and testnet proof artifacts.

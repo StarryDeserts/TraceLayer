@@ -19,7 +19,7 @@ Use a lightweight Sui artifact anchor. The MVP Move module creates one compact a
 - Created timestamp
 - Schema version
 
-The artifact bytes remain on Walrus. Operational run metadata remains in the local database.
+The artifact bytes remain on Walrus. Operational run metadata remains in the local database. The preferred MVP path is wallet-signed, so `owner = tx_context::sender(ctx)` is the connected wallet. Server-signed anchors are allowed only as fallback and are service-owned proofs unless a future module stores a separate `claimed_owner` app claim.
 
 ## Consequences
 
@@ -34,7 +34,7 @@ Negative:
 - Sui is not the full query layer.
 - Run details can be lost if the local DB is deleted unless manifests are later stored on Walrus.
 - Public blob IDs and artifact hashes may leak metadata.
-- Anchor object ownership semantics need review.
+- Anchor object ownership must be labeled carefully: wallet-signed anchors are user-owned; server-signed fallback anchors are service-owned.
 
 ## Alternatives Considered
 

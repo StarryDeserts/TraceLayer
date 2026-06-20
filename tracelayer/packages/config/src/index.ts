@@ -17,6 +17,7 @@ export type TraceLayerConfig = {
   walrusEpochs: number;
   walrusDeletable: boolean;
   suiPrivateKey?: string;
+  webOrigins: string[];
 };
 
 const demoModes = ['live', 'recorded', 'dry-run'] as const;
@@ -72,6 +73,35 @@ export function looksLikeSha256Hex(value: string | undefined): value is string {
   return value !== undefined && sha256HexPattern.test(value.trim());
 }
 
+export function parseWebOrigins(value: string | undefined): string[] {
+  if (value === undefined || value.trim() === '') return ['http://localhost:3000'];
+  const entries = value.split(',').map((entry) => entry.trim()).filter((entry) => entry.length > 0);
+  if (entries.length === 0) throw new Error('TRACE_LAYER_WEB_ORIGINS must contain at least one origin');
+  return entries.map(canonicalizeWebOrigin);
+}
+
+function canonicalizeWebOrigin(entry: string): string {
+  let url: URL;
+  try {
+    url = new URL(entry);
+  } catch {
+    throw new Error(`TRACE_LAYER_WEB_ORIGINS entry "${entry}" is not a valid URL`);
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new Error(`TRACE_LAYER_WEB_ORIGINS entry "${entry}" must use http or https`);
+  }
+  if (url.username !== '' || url.password !== '') {
+    throw new Error(`TRACE_LAYER_WEB_ORIGINS entry "${entry}" must not include credentials`);
+  }
+  if (url.pathname !== '' && url.pathname !== '/') {
+    throw new Error(`TRACE_LAYER_WEB_ORIGINS entry "${entry}" must be an origin (no path)`);
+  }
+  if (url.search !== '' || url.hash !== '') {
+    throw new Error(`TRACE_LAYER_WEB_ORIGINS entry "${entry}" must be an origin (no query or fragment)`);
+  }
+  return url.origin;
+}
+
 export function assertNoDryRunPublicProofIds(
   config: Pick<TraceLayerConfig, 'demoMode' | 'recordedBlobId' | 'recordedTxDigest' | 'recordedArtifactSha256'>,
 ): void {
@@ -123,6 +153,7 @@ export function createTraceLayerConfig(env: NodeJS.ProcessEnv = process.env): Tr
     walrusRelayMaxTipMist: parsePositiveIntegerEnv('WALRUS_UPLOAD_RELAY_MAX_TIP_MIST', env.WALRUS_UPLOAD_RELAY_MAX_TIP_MIST, 1),
     walrusEpochs: parsePositiveIntegerEnv('WALRUS_EPOCHS', env.WALRUS_EPOCHS, 1),
     walrusDeletable: parseBooleanEnv('WALRUS_DELETABLE', env.WALRUS_DELETABLE, true),
+    webOrigins: parseWebOrigins(env.TRACE_LAYER_WEB_ORIGINS),
     ...(env.TRACE_LAYER_API_TOKEN ? { apiToken: env.TRACE_LAYER_API_TOKEN } : {}),
     ...(env.SUI_PRIVATE_KEY ? { suiPrivateKey: env.SUI_PRIVATE_KEY } : {}),
     ...(env.TRACE_LAYER_RECORDED_BLOB_ID ? { recordedBlobId: env.TRACE_LAYER_RECORDED_BLOB_ID } : {}),

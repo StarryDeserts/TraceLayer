@@ -1,8 +1,12 @@
 import { createHash } from 'node:crypto';
-import { describe, expect, it } from 'vitest';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { canAnchorArtifact } from '@tracelayer/proof';
 import { createInMemoryTraceLayerDb, getArtifact, initializeSchema, listProofEvents, updateArtifactUpload, updateArtifactVerification } from '@tracelayer/db';
 import { createDemoRun, handleApiRequest, type AnchorOperations, type WalrusOperations } from './index.js';
+import { createPersistentArtifactByteStore } from './artifact-bytes.js';
 
 function createFakeWalrus(readText = '# TraceLayer Phase 1 Demo\n'): WalrusOperations & { uploadCalls: number; readCalls: number } {
   return {
@@ -193,6 +197,78 @@ describe('api', () => {
     expect(JSON.stringify(body)).not.toContain('secret-token');
     expect(replay.status).toBe(200);
     db.close();
+  });
+
+  describe('persistent artifact byte store', () => {
+    let directory: string;
+
+    beforeEach(() => {
+      directory = mkdtempSync(join(tmpdir(), 'tracelayer-bytes-api-'));
+    });
+
+    afterEach(() => {
+      if (existsSync(directory)) rmSync(directory, { recursive: true, force: true });
+    });
+
+    it('recovers artifact bytes from disk after restarting the byte store', async () => {
+      const db = createInMemoryTraceLayerDb();
+      initializeSchema(db);
+      const artifactJsonText = JSON.stringify(validLiveModelArtifact, null, 2);
+      const initialStore = createPersistentArtifactByteStore(directory);
+      const registerState = { db, artifactBytes: initialStore, env: liveAnchorEnv };
+      const register = await handleApiRequest(liveModelRunRequest(artifactJsonText), registerState);
+      const registered = (await register.json()) as { artifact: { artifactId: string } };
+
+      const restartedStore = createPersistentArtifactByteStore(directory);
+      let uploadedBytesLength = 0;
+      const walrus: WalrusOperations = {
+        async uploadArtifact(input) {
+          uploadedBytesLength = input.bytes.byteLength;
+          return {
+            blobId: '0x1234567890abcdef1234567890abcdef',
+            sha256: input.expectedSha256,
+            byteLength: input.bytes.byteLength,
+            rawWalrusResponse: { kind: 'writeBlob' },
+          };
+        },
+        async readArtifact() {
+          return new TextEncoder().encode(artifactJsonText);
+        },
+      };
+
+      const upload = await handleApiRequest(
+        new Request(`http://localhost/api/artifacts/${registered.artifact.artifactId}/upload`, { method: 'POST', headers: { authorization: 'Bearer secret-token' } }),
+        { db, walrus, artifactBytes: restartedStore, env: liveAnchorEnv },
+      );
+
+      expect(register.status).toBe(201);
+      expect(upload.status).toBe(200);
+      expect(uploadedBytesLength).toBe(new TextEncoder().encode(artifactJsonText).byteLength);
+      expect(existsSync(join(directory, `${registered.artifact.artifactId}.bin`))).toBe(false);
+      db.close();
+    });
+
+    it('removes on-disk artifact bytes after successful Walrus upload', async () => {
+      const db = createInMemoryTraceLayerDb();
+      initializeSchema(db);
+      const artifactJsonText = JSON.stringify(validLiveModelArtifact, null, 2);
+      const store = createPersistentArtifactByteStore(directory);
+      const state = { db, artifactBytes: store, walrus: createFakeWalrus(artifactJsonText), env: liveAnchorEnv };
+
+      const register = await handleApiRequest(liveModelRunRequest(artifactJsonText), state);
+      const registered = (await register.json()) as { artifact: { artifactId: string } };
+      const filePath = join(directory, `${registered.artifact.artifactId}.bin`);
+      expect(existsSync(filePath)).toBe(true);
+
+      const upload = await handleApiRequest(
+        new Request(`http://localhost/api/artifacts/${registered.artifact.artifactId}/upload`, { method: 'POST', headers: { authorization: 'Bearer secret-token' } }),
+        state,
+      );
+
+      expect(upload.status).toBe(200);
+      expect(existsSync(filePath)).toBe(false);
+      db.close();
+    });
   });
 
   it('uploads exact bytes from a registered live model artifact', async () => {

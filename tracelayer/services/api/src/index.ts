@@ -2,6 +2,12 @@ import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import { assertLiveSuiAnchorConfig, createTraceLayerConfig, looksLikeRecordedBlobId, looksLikeSuiObjectId, looksLikeSuiTxDigest, type TraceLayerConfig } from '@tracelayer/config';
 import { validateLiveModelArtifactJsonText } from './model-artifact.js';
 import {
+  createInMemoryArtifactByteStore,
+  createPersistentArtifactByteStore,
+  resolveDefaultArtifactBytesDirectory,
+  type ArtifactByteStore,
+} from './artifact-bytes.js';
+import {
   assembleReplayData,
   getAgentRun,
   getArtifact,
@@ -84,15 +90,23 @@ export type ApiState = {
   db: TraceLayerDb;
   walrus?: WalrusOperations;
   anchor?: AnchorOperations;
+  artifactBytes?: ArtifactByteStore;
   env?: NodeJS.ProcessEnv;
 };
 
-const artifactBytes = new Map<string, Uint8Array>();
+export type { ArtifactByteStore } from './artifact-bytes.js';
+
+const defaultArtifactByteStore: ArtifactByteStore = createInMemoryArtifactByteStore();
+
+function resolveArtifactByteStore(state: ApiState): ArtifactByteStore {
+  return state.artifactBytes ?? defaultArtifactByteStore;
+}
 
 export function createDefaultApiState(): ApiState {
   const db = openTraceLayerDb(process.env.TRACE_LAYER_DB_PATH);
   initializeSchema(db);
-  return { db };
+  const artifactBytes = createPersistentArtifactByteStore(resolveDefaultArtifactBytesDirectory(process.env));
+  return { db, artifactBytes };
 }
 
 export async function handleApiRequest(request: Request, state: ApiState): Promise<Response> {
@@ -103,7 +117,7 @@ export async function handleApiRequest(request: Request, state: ApiState): Promi
     const artifactAction = parseArtifactAction(path);
     if (request.method === 'GET' && path === '/api/live-demo/capabilities') return liveDemoCapabilitiesResponse(state);
     if (request.method === 'POST' && path === '/api/live-demo/model-artifact-run') return await createLiveModelArtifactRunResponse(request, state);
-    if (request.method === 'POST' && path === '/api/runs/demo') return jsonResponse(createDemoRun(state.db), 201);
+    if (request.method === 'POST' && path === '/api/runs/demo') return jsonResponse(createDemoRun(state.db, resolveArtifactByteStore(state)), 201);
     if (request.method === 'POST' && path === '/api/dev/recorded-walrus-artifact') return await createRecordedWalrusArtifactResponse(request, state);
     if (request.method === 'POST' && artifactAction?.action === 'upload') return await uploadArtifactResponse(request, state, artifactAction.artifactId);
     if (request.method === 'POST' && artifactAction?.action === 'verify') return await verifyArtifactResponse(request, state, artifactAction.artifactId);
@@ -219,12 +233,12 @@ async function createLiveModelArtifactRunResponse(request: Request, state: ApiSt
 
   insertAgentRun(state.db, run);
   insertArtifact(state.db, artifact);
-  artifactBytes.set(artifactId, validated.bytes);
+  resolveArtifactByteStore(state).set(artifactId, validated.bytes);
   for (const event of proofEvents) insertProofEvent(state.db, event);
   return jsonResponse({ run, artifact, proofEvents }, 201);
 }
 
-export function createDemoRun(db: TraceLayerDb): { run: AgentRun; artifact: ArtifactRef; proofEvents: ProofEvent[] } {
+export function createDemoRun(db: TraceLayerDb, artifactBytes: ArtifactByteStore = defaultArtifactByteStore): { run: AgentRun; artifact: ArtifactRef; proofEvents: ProofEvent[] } {
   const config = createTraceLayerConfig({ TRACE_LAYER_DEMO_MODE: 'dry-run' });
   const now = Date.now();
   const runId = `run_${randomUUID()}`;
@@ -314,6 +328,7 @@ export function createDemoRun(db: TraceLayerDb): { run: AgentRun; artifact: Arti
 }
 
 async function uploadArtifactResponse(request: Request, state: ApiState, artifactId: string): Promise<Response> {
+  const artifactStore = resolveArtifactByteStore(state);
   const artifact = getArtifact(state.db, artifactId);
   if (artifact === undefined) return jsonResponse({ error: 'artifact not found' }, 404);
   const config = createTraceLayerConfig(state.env ?? process.env);
@@ -326,7 +341,7 @@ async function uploadArtifactResponse(request: Request, state: ApiState, artifac
   if (config.demoMode === 'recorded') return jsonResponse(recordRecordedUpload(state.db, artifact, config), 200);
   if (state.walrus === undefined) return jsonResponse({ error: 'live Walrus operations are not configured' }, 500);
 
-  const bytes = artifactBytes.get(artifactId) ?? encodePreview(artifact);
+  const bytes = artifactStore.get(artifactId) ?? encodePreview(artifact);
   const expectedSha256 = sha256Hex(bytes);
   if (expectedSha256 !== artifact.sha256) return jsonResponse({ error: 'artifact bytes do not match stored sha256' }, 409);
   const correlationId = createCorrelationId();
@@ -360,6 +375,7 @@ async function uploadArtifactResponse(request: Request, state: ApiState, artifac
       walrusBlobId: upload.blobId,
       hashSha256: artifact.sha256,
     }));
+    artifactStore.delete(artifactId);
     return jsonResponse({ artifact: uploaded });
   } catch (error) {
     const failed = updateArtifactUpload(state.db, artifactId, {

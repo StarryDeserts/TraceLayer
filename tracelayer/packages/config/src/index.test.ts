@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assertLiveSuiAnchorConfig, createTraceLayerConfig, parseDemoMode } from './index.js';
+import { assertLiveSuiAnchorConfig, createTraceLayerConfig, parseDemoMode, parseWebOrigins } from './index.js';
 
 describe('config', () => {
   it('defaults demo mode to dry-run', () => {
@@ -133,6 +133,34 @@ describe('config', () => {
     });
 
     expect(() => assertLiveSuiAnchorConfig(config)).toThrow(/SUI_ANCHOR_PACKAGE_ID/);
+  });
+
+  it('defaults webOrigins to the local Next.js dev origin when env is unset', () => {
+    expect(parseWebOrigins(undefined)).toEqual(['http://localhost:3000']);
+    expect(parseWebOrigins('')).toEqual(['http://localhost:3000']);
+  });
+
+  it('parses comma-separated webOrigins and canonicalizes trailing slashes', () => {
+    expect(parseWebOrigins('http://localhost:3000, https://app.example.test/')).toEqual([
+      'http://localhost:3000',
+      'https://app.example.test',
+    ]);
+  });
+
+  it('rejects webOrigins that include credentials, paths, queries, or non-http schemes', () => {
+    expect(() => parseWebOrigins('not-a-url')).toThrow(/TRACE_LAYER_WEB_ORIGINS/);
+    expect(() => parseWebOrigins('ftp://example.invalid')).toThrow(/http or https/);
+    expect(() => parseWebOrigins('https://user:pass@example.invalid')).toThrow(/credentials/);
+    expect(() => parseWebOrigins('https://example.invalid/admin')).toThrow(/no path/);
+    expect(() => parseWebOrigins('https://example.invalid/?token=secret')).toThrow(/no path|no query/);
+  });
+
+  it('threads webOrigins through createTraceLayerConfig', () => {
+    const config = createTraceLayerConfig({
+      TRACE_LAYER_DEMO_MODE: 'dry-run',
+      TRACE_LAYER_WEB_ORIGINS: 'http://localhost:3000,https://app.example.test',
+    });
+    expect(config.webOrigins).toEqual(['http://localhost:3000', 'https://app.example.test']);
   });
 
   it('parses live Walrus settings when all gates are present', () => {

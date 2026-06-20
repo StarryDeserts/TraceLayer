@@ -11,13 +11,20 @@ const navItems = [
   { href: '/delegates', label: 'Delegates' },
 ];
 
+export const brandLogoSrc = '/favicon.ico';
+export const brandLogoAlt = 'TraceLayer logo';
+export const brandWordmark = 'TraceLayer';
+export const brandSubtitle = 'Proof Control Plane';
+
 export function Brand({ href = '/dashboard' }: { href?: string }) {
   return (
     <a className="brand" href={href}>
-      <span className="logo" aria-hidden="true" />
-      <span>
-        <b>TraceLayer</b>
-        <span>Proof Control Plane</span>
+      <span className="logo" aria-hidden="true">
+        <img src={brandLogoSrc} alt={brandLogoAlt} width={32} height={32} />
+      </span>
+      <span className="brand-copy">
+        <b>{brandWordmark}</b>
+        <span>{brandSubtitle}</span>
       </span>
     </a>
   );

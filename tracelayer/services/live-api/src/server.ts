@@ -17,9 +17,11 @@ const BunMaybe = globalThis as typeof globalThis & {
   serve?: (options: { port: number; fetch: (request: Request) => Response | Promise<Response> }) => unknown;
 };
 
+const liveHttpOptions = { webOrigins: config.webOrigins };
+
 const server = BunMaybe.serve?.({
   port,
-  fetch: (request: Request) => handleLiveHttpRequest(request, (apiRequest) => handleApiRequest(apiRequest, state)),
+  fetch: (request: Request) => handleLiveHttpRequest(request, (apiRequest) => handleApiRequest(apiRequest, state), liveHttpOptions),
 });
 
 if (server === undefined) {
@@ -34,7 +36,7 @@ if (server === undefined) {
       ...(chunks.length === 0 ? {} : { body: Buffer.concat(chunks) }),
     };
     const webRequest = new Request(`http://${host}${request.url ?? '/'}`, requestInit);
-    const webResponse = await handleLiveHttpRequest(webRequest, (apiRequest) => handleApiRequest(apiRequest, state));
+    const webResponse = await handleLiveHttpRequest(webRequest, (apiRequest) => handleApiRequest(apiRequest, state), liveHttpOptions);
     response.writeHead(webResponse.status, Object.fromEntries(webResponse.headers.entries()));
     response.end(Buffer.from(await webResponse.arrayBuffer()));
   }).listen(port);

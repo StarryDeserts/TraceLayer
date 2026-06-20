@@ -122,21 +122,22 @@ p {
 }
 
 .logo {
-  position: relative;
   width: 32px;
   height: 32px;
   flex: 0 0 auto;
   border-radius: 10px;
-  background: linear-gradient(135deg, var(--cyan), var(--purple));
-  box-shadow: 0 0 26px rgba(56, 189, 248, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  background: rgba(15, 23, 42, 0.72);
+  box-shadow: 0 0 26px rgba(56, 189, 248, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
 }
 
-.logo::after {
-  position: absolute;
-  inset: 9px;
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  border-radius: 5px;
-  content: "";
+.logo img {
+  display: block;
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
 }
 
 .brand b {
@@ -145,7 +146,7 @@ p {
   letter-spacing: -0.02em;
 }
 
-.brand span {
+.brand-copy {
   display: block;
   color: var(--dim);
   font-size: 11px;
@@ -1093,7 +1094,7 @@ h1 {
   }
 
   .sidebar .brand b,
-  .sidebar .brand span,
+  .sidebar .brand-copy,
   .side-nav a span,
   .nav-label,
   .sidebar-card {
@@ -1142,7 +1143,7 @@ h1 {
   }
 
   .sidebar .brand b,
-  .sidebar .brand span,
+  .sidebar .brand-copy,
   .side-nav a span,
   .nav-label {
     display: block;

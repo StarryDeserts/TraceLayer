@@ -8,7 +8,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "build": "tsc",
-    "dev": "node --import tsx src/server.ts"
+    "dev": "cross-env PORT=3002 node --import tsx src/server.ts"
   },
   "dependencies": {
     "@tracelayer/api": "workspace:*",
@@ -17,6 +17,7 @@
     "@tracelayer/walrus": "workspace:*"
   },
   "devDependencies": {
+    "cross-env": "^10.1.0",
     "tsx": "^4.20.6"
   }
 }

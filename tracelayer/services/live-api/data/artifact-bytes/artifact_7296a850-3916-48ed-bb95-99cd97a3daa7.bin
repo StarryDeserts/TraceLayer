@@ -1,0 +1,11 @@
+{
+  "title": "Release Notes Review",
+  "summary": "No release notes provided for review.",
+  "taskUnderstanding": "The task was to review release notes and produce a markdown report, but no input was given.",
+  "artifactType": "markdown_report",
+  "artifactMarkdown": "# Release Notes Review\n\nNo release notes were provided. Please supply the release notes for analysis.",
+  "memoryRefs": [],
+  "replayNotes": [],
+  "riskNotes": [],
+  "chainOfThoughtIncluded": false
+}

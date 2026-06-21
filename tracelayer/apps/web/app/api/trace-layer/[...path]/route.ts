@@ -24,7 +24,7 @@ async function proxyRequest(request: Request, context: RouteContext): Promise<Re
   if (allowedPath === undefined) return Response.json({ error: 'proxy path not allowed' }, { status: 404 });
 
   const token = process.env.TRACE_LAYER_API_TOKEN ?? '';
-  const baseUrl = new URL(process.env.TRACE_LAYER_API_URL ?? 'http://localhost:3001');
+  const baseUrl = new URL(process.env.TRACE_LAYER_API_URL ?? 'http://localhost:3002');
   if (request.method === 'GET' && allowedPath === '/api/proxy-diagnostics') return proxyDiagnosticsResponse(baseUrl, token);
   const targetUrl = new URL(`${allowedPath}${sourceUrl.search}`, baseUrl);
   if (targetUrl.origin !== baseUrl.origin) return Response.json({ error: 'invalid proxy target' }, { status: 400 });

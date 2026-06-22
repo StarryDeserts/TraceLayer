@@ -11,6 +11,7 @@ spikes/
 fixtures/
 uiux-design/
 demo/
+tracelayer_demo_*.mp4
 .env
 .env.*
 *.db

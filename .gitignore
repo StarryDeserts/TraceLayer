@@ -9,6 +9,7 @@ docs/
 spikes/
 fixtures/
 uiux-design/
+demo/
 .env
 .env.*
 *.db

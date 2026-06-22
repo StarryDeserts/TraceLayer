@@ -8,7 +8,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "build": "tsc",
-    "dev": "cross-env PORT=3002 node --import tsx src/server.ts"
+    "dev": "cross-env PORT=3002 node --env-file-if-exists=.env --import tsx src/server.ts"
   },
   "dependencies": {
     "@tracelayer/api": "workspace:*",

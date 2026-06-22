@@ -2,6 +2,7 @@ node_modules/
 .pnpm-store/
 .next/
 .claude/
+.codegraph/
 .playwright-mcp
 dist/
 coverage/
@@ -15,5 +16,8 @@ demo/
 *.db
 *.db-shm
 *.db-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
 *.tsbuildinfo
 phase*.png
